@@ -31,7 +31,7 @@ def executeRequest(cmd):
 
 	return o[0]
 	
-#Server  Provisioning business group id
+#Business group id
 group="643b55e8-535e-4fa9-b232-ae964382d715"
 
 cmd = "./cloudclient.sh vra catalog request submit --id " + blueprint + " --groupid " + group + " --reason AutomatedDeployment"
