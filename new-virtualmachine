@@ -1,0 +1,81 @@
+#!/usr/bin/python
+
+from subprocess import Popen, PIPE
+from time import sleep
+import sys
+import json
+
+#Section for arguments
+if len (sys.argv) != 2:
+	print
+	print "Usage: new-virtualmachine <vmType>"
+	print
+
+	sys.exit(1) 
+
+arg = sys.argv[1]
+
+if arg.lower() == "linux":
+	blueprint = "a01d4fb8-27f3-4f41-8756-8dbb2167c8b8"
+elif arg.lower() == "windows":
+	blueprint = "911cab2b-718b-4fc3-a8fa-11aded05160e"
+
+
+#This function will execute a command and return stdout
+def executeRequest(cmd):
+	r = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
+	o = r.communicate()
+	
+	if r.returncode != 0:
+		sys.exit(o[1])
+
+	return o[0]
+	
+#Server  Provisioning business group id
+group="643b55e8-535e-4fa9-b232-ae964382d715"
+
+cmd = "./cloudclient.sh vra catalog request submit --id " + blueprint + " --groupid " + group + " --reason AutomatedDeployment"
+
+print " - CLOUDCLIENT provision blueprint " + blueprint
+
+request = executeRequest(cmd)
+requestData = request.rstrip()
+
+cmd = "./cloudclient.sh vra request detail --id " + requestData + " --format JSON"
+
+print " - CLOUDCLIENT monitor request id " + requestData + " status"
+
+#Keep requesting the status of the deployment and break when the process is no longer "IN_PROGRESS"
+while True:
+	sleep(10)
+	
+	request = executeRequest(cmd)
+	requestData = json.loads(request)
+
+	if requestData['state'] != "IN_PROGRESS":
+		break
+
+#Work out of the task failed and if not set the state variable
+if requestData['state'] == "PROVIDER_FAILED":
+	state = requestData['state']
+	reason = requestData['requestCompletion']['completionDetails']
+	sys.exit(" - CLOUDCLIENT ERROR: " + state)
+else:
+	state = requestData['state']
+
+print " - CLOUDCLIENT request status : " + state
+
+#Get the name of the vm and return JSON formatted response
+provisionedResource = requestData['requestCompletion']['completionDetails'].split()[3].rstrip(".")
+
+cmd = "./cloudclient.sh vra provisioneditem detail --id " + provisionedResource + " --format JSON"
+request = executeRequest(cmd)
+
+#requestData = json.loads(request)
+print " - CLOUDCLIENT json response:"
+print request
+
+
+
+
+
